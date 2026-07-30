@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Colaboradores & Folha de Ponto</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Biblioteca para exportação de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+    <!-- NAVEGAÇÃO SUPERIOR -->
+    <nav class="top-nav">
+        <button type="button" class="nav-btn active" id="btnAbaFolha" onclick="Navegacao.trocarAba('Folha')">
+            <i class="fas fa-file-alt"></i> <span>Folha Mensal</span>
+        </button>
+        <button type="button" class="nav-btn" id="btnAbaHistorico" onclick="Navegacao.trocarAba('Historico')">
+            <i class="fas fa-history"></i> <span>Histórico</span>
+        </button>
+        <button type="button" class="nav-btn" id="btnAbaCurriculo" onclick="Navegacao.trocarAba('Curriculo')">
+            <i class="fas fa-graduation-cap"></i> <span>Currículo</span>
+        </button>
+    </nav>
+
+    <div class="container">
+
+        <!-- ABA 1: FOLHA MENSAL -->
+        <div id="abaFolha">
+            <div class="card">
+                <h2><i class="fas fa-id-card"></i> Folha de Ponto</h2>
+                <p class="subtitle">Preenchimento mensal automatizado</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>COLABORADOR</label>
+                        <input type="text" id="nomeFuncionario" placeholder="Nome do colaborador" oninput="CurriculoController.sincronizarNome(this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>MÊS / ANO</label>
+                        <input type="month" id="mesAno" onchange="FolhaPontoController.gerarTabela()">
+                    </div>
+                </div>
+
+                <div class="grid-botoes">
+                    <button type="button" class="btn btn-verde" onclick="FolhaPontoController.preencherPadrao()"><i class="fas fa-bolt"></i> Padrão</button>
+                    <button type="button" class="btn btn-azul" onclick="FolhaPontoController.exportarPDF()"><i class="fas fa-file-pdf"></i> Obter PDF</button>
+                    <button type="button" class="btn btn-laranja" onclick="FolhaPontoController.salvar()"><i class="fas fa-save"></i> Guardar</button>
+                    <button type="button" class="btn btn-cinza" onclick="FolhaPontoController.limpar()"><i class="fas fa-eraser"></i> Limpar</button>
+                </div>
+            </div>
+
+            <!-- DASHBOARD DE HORAS -->
+            <div class="dashboard-cards">
+                <div class="dash-card">
+                    <h3 id="dashTrabalhadas">0h 00m</h3>
+                    <p>TRABALHADAS</p>
+                </div>
+                <div class="dash-card">
+                    <h3 id="dashEsperadas" class="txt-verde">0h 00m</h3>
+                    <p>ESPERADAS</p>
+                </div>
+                <div class="dash-card">
+                    <h3 id="dashSaldo" class="txt-vermelho">0h 00m</h3>
+                    <p>SALDO</p>
+                </div>
+                <div class="dash-card">
+                    <h3 id="dashDias">0</h3>
+                    <p>DIAS TRAB.</p>
+                </div>
+            </div>
+
+            <!-- HORÁRIOS DE REFERÊNCIA -->
+            <div class="card">
+                <h3>HORÁRIOS DE REFERÊNCIA</h3>
+                <div class="ref-block">
+                    <label class="txt-verde-bold">Segunda a Sexta</label>
+                    <div class="horarios-grid">
+                        <input type="time" id="refEnt1" value="08:00">
+                        <input type="time" id="refSai1" value="12:00">
+                        <input type="time" id="refEnt2" value="13:00">
+                        <input type="time" id="refSai2" value="17:00">
+                    </div>
+                </div>
+                <div class="ref-block">
+                    <label class="txt-amarelo-bold">Sábado</label>
+                    <div class="horarios-grid">
+                        <input type="time" id="refSabEnt1" value="08:00">
+                        <input type="time" id="refSabSai1" value="12:00">
+                        <input type="time" id="refSabEnt2" value="">
+                        <input type="time" id="refSabSai2" value="">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABELA DE REGISTO DIÁRIO -->
+            <div class="card table-container">
+                <table id="tabelaPonto">
+                    <thead>
+                        <tr>
+                            <th>DIA</th>
+                            <th>STATUS</th>
+                            <th>ENT. 1</th>
+                            <th>SAÍ. 1</th>
+                            <th>ENT. 2</th>
+                            <th>SAÍ. 2</th>
+                            <th>TOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabelaPonto">
+                        <!-- Gerado via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ABA 2: HISTÓRICO -->
+        <div id="abaHistorico" style="display:none">
+            <div class="card">
+                <h2><i class="fas fa-history"></i> Registos Guardados</h2>
+                <div id="listaHistorico" class="historico-list">
+                    <!-- Gerado via JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 3: CURRÍCULO (MODELO EUROPASS) -->
+        <div id="abaCurriculo" style="display:none">
+            <div class="europass-card">
+                <div class="europass-header-top">
+                    <div class="logo-container">
+                        <div class="eu-flag">
+                            <svg viewBox="0 0 500 333.33">
+                                <path fill="#003399" d="M0 0h500v333.33H0z"/>
+                                <g fill="#ffcc00">
+                                    <circle cx="250" cy="50" r="10"/><circle cx="250" cy="283.33" r="10"/>
+                                    <circle cx="133.33" cy="166.66" r="10"/><circle cx="366.66" cy="166.66" r="10"/>
+                                    <circle cx="164.57" cy="81.24" r="10"/><circle cx="335.43" cy="252.09" r="10"/>
+                                    <circle cx="81.24" cy="164.57" r="10"/><circle cx="252.09" cy="335.43" r="10"/>
+                                    <circle cx="164.57" cy="252.09" r="10"/><circle cx="335.43" cy="81.24" r="10"/>
+                                </g>
+                            </svg>
+                        </div>
+                        <div class="europass-brand">
+                            <div class="europass-title">euro<span>pass</span></div>
+                            <div class="europass-subtitle">União Europeia</div>
+                        </div>
+                    </div>
+                    <div class="validity-notice">Ficha de Registo do Colaborador</div>
+                </div>
+
+                <div class="banner-container">
+                    <div class="profile-photo-wrapper">
+                        <div class="photo-circle">
+                            <span class="photo-placeholder" id="photo-text">Sem foto</span>
+                            <img id="profile-img" src="" alt="Foto de Perfil" style="display: none;">
+                        </div>
+                        <label for="file-input" class="btn-upload-photo">📷 Alterar Foto</label>
+                        <input type="file" id="file-input" accept="image/*" onchange="CurriculoController.carregarFoto(event)">
+                    </div>
+                </div>
+
+                <div class="user-name-display">
+                    <h2 id="display-name">Nome do Colaborador</h2>
+                </div>
+
+                <div class="form-body">
+                    <form id="formCurriculo" onsubmit="CurriculoController.salvar(event)">
+                        <div class="section-title">1. Informação Pessoal</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cv_nome">Nome Completo</label>
+                                <input type="text" id="cv_nome" placeholder="Nome Completo" oninput="CurriculoController.sincronizarNome(this.value)" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="cv_nascimento">Data de Nascimento</label>
+                                <input type="date" id="cv_nascimento" class="input-data-ajustada">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cv_email">E-mail</label>
+                                <input type="email" id="cv_email" placeholder="exemplo@email.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="cv_telefone">Telefone / Telemóvel</label>
+                                <input type="tel" id="cv_telefone" placeholder="+351 912 345 678">
+                            </div>
+                        </div>
+
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label for="cv_endereco">Endereço / Morada</label>
+                            <input type="text" id="cv_endereco" placeholder="Rua, Número, Código Postal, Cidade">
+                        </div>
+
+                        <div class="section-header-flex">
+                            <div class="section-title" style="margin:0; border:none; padding:0;">2. Experiência Profissional</div>
+                            <button type="button" class="btn-add-exp" onclick="CurriculoController.adicionarBlocoExperiencia()"><i class="fas fa-plus"></i> Adicionar</button>
+                        </div>
+                        
+                        <div id="containerExperiencias">
+                            <!-- Blocos dinâmicos inseridos via JS -->
+                        </div>
+
+                        <div class="section-title" style="margin-top:20px;">3. Educação e Formação</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cv_escolaridade">Nível de Escolaridade</label>
+                                <select id="cv_escolaridade">
+                                    <option value="">Selecione uma opção</option>
+                                    <option value="Ensino Básico">Ensino Básico (9º ano)</option>
+                                    <option value="Ensino Secundário">Ensino Secundário (12º ano)</option>
+                                    <option value="Curso Técnico">Curso Técnico / Profissional</option>
+                                    <option value="Licenciatura">Licenciatura</option>
+                                    <option value="Mestrado/Doutoramento">Mestrado / Doutoramento</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cv_instituicao">Instituição de Ensino</label>
+                                <input type="text" id="cv_instituicao" placeholder="Nome da escola/universidade">
+                            </div>
+                        </div>
+
+                        <div class="grid-botoes" style="margin-top:20px;">
+                            <button type="submit" class="btn btn-verde" style="padding:12px; font-size:13px;"><i class="fas fa-save"></i> Guardar Dados</button>
+                            <button type="button" class="btn btn-azul" onclick="CurriculoController.exportarPDF()" style="padding:12px; font-size:13px;"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="toast">Notificação</div>
+
+    <script src="classes.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
