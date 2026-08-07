@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folha de Ponto - Jorge Costa</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#16a34a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Folha de Ponto">
+
+    <!-- Ícones -->
+    <link rel="icon" href="/icons/icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" href="/icons/icon-180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+    
+    <!-- Bibliotecas de Exportação e Ícones -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+        :root { --verde:#16a34a; --cinza-fundo:#111827; --cinza-card:#1f2937; --cinza-borda:#374151; --cinza-texto:#d1d5db; --cinza-muted:#9ca3af; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        body { background:var(--cinza-fundo); color:var(--cinza-texto); font-family:'Segoe UI',Arial,sans-serif; padding:16px 16px 40px; }
+
+        /* ABAS */
+        .abas { display:flex; gap:4px; margin-bottom:14px; background:var(--cinza-card); border:1px solid var(--cinza-borda); border-radius:10px; padding:5px; }
+        .aba { flex:1; padding:10px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:transparent; color:var(--cinza-muted); transition:all .2s; text-align:center; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .aba.ativa { background:var(--verde); color:#fff; }
+
+        /* HEADER & CONTROLES */
+        .header { background:var(--cinza-card); border:1px solid var(--cinza-borda); border-radius:10px; padding:16px; margin-bottom:12px; }
+        .header h1 { font-size:16px; font-weight:700; color:#34d399; margin-bottom:2px; }
+        .header p  { font-size:11px; color:var(--cinza-muted); margin-bottom:14px; }
+        
+        .grid-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+        .campo label { display:block; font-size:10px; color:var(--cinza-muted); margin-bottom:4px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .campo input { box-sizing:border-box; width:100%; height:38px; background:#374151; border:1px solid #4b5563; border-radius:6px; padding:8px 10px; color:#fff; font-size:13px; outline:none; -webkit-appearance:none; appearance:none; }
+        .campo input:focus { border-color:var(--verde); }
+        .campo input[type="month"] { min-height:0; line-height:normal; }
+
+        /* GRID ERGONÓMICO DE BOTÕES */
+        .grid-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .btn { padding:10px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:none; transition:all .15s; display:flex; align-items:center; justify-content:center; gap:6px; color:#fff; }
+        .btn:active { transform: scale(0.97); }
+        
+        .btn-verde { background:#059669; }
+        .btn-azul  { background:#2563eb; }
+        .btn-amber { background:#d97706; }
+        .btn-cinza { background:#4b5563; }
+        .btn-red   { background:#dc2626; }
+        .btn-excel { background:#15803d; }
+        .btn-pdf   { background:#7c3aed; }
+
+        /* PAINEL HORAS */
+        .painel-horas { background:var(--cinza-card); border:1px solid var(--cinza-borda); border-radius:10px; padding:14px; margin-bottom:12px; display:flex; gap:10px; justify-content:space-between; }
+        .bloco-hora { text-align:center; flex: 1; }
+        .bloco-hora .valor { font-size:18px; font-weight:700; color:#34d399; }
+        .bloco-hora .valor.negativo { color:#f87171; }
+        .bloco-hora .rotulo { font-size:8px; color:var(--cinza-muted); margin-top:4px; text-transform:uppercase; }
+        .divisor { width:1px; background:var(--cinza-borda); height:28px; align-self:center; }
+
+        /* HORÁRIOS PADRÃO */
+        .padroes { background:var(--cinza-card); border:1px solid var(--cinza-borda); border-radius:10px; padding:14px; margin-bottom:12px; }
+        .padroes h2 { font-size:10px; text-transform:uppercase; color:var(--cinza-muted); margin-bottom:10px; letter-spacing: 0.05em; }
+        .flex-padroes { display: flex; flex-direction: column; gap: 10px; }
+        .grupo-padrao { background:#111827; border:1px solid #374151; border-radius:8px; padding:10px; }
+        .grupo-padrao span { font-size:11px; font-weight:700; display:block; margin-bottom:8px; }
+        .grade-horas { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+        .grade-horas input { width:100%; background:#1f2937; border:1px solid #4b5563; border-radius:4px; padding:5px; font-size:11px; color:#fff; text-align:center; outline:none; }
+
+        /* TABELA DA FOLHA MENSAL */
+        .tabela-wrap { background:var(--cinza-card); border:1px solid var(--cinza-borda); border-radius:10px; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; }
+        thead tr { background:#2d3748; }
+        th { padding:10px 4px; font-size:9px; color:#9ca3af; text-transform:uppercase; letter-spacing: 0.04em; text-align:center; }
+        td { padding:5px 3px; font-size:11px; border-top:1px solid #374151; text-align:center; vertical-align:middle; }
+        
+        input[type="time"].hora { background:#111827; border:1px solid #374151; border-radius:4px; padding:4px; font-size:11px; color:#fff; text-align:center; width:56px; outline:none; }
+        input[type="time"].hora:focus { border-color:var(--verde); }
+        select.status { background:#374151; border:1px solid #4b5563; border-radius:4px; color:#fff; font-size:10px; padding:4px; outline:none; width:100%; max-width:85px; }
+
+        tr.fim-semana td { background:#1e293b; }
+        tr.domingo td { background:#181e29; }
+        tr.feriado td { background:#451c1c !important; }
+        tr.justificado td { background:#45301c !important; }
+        tr.feriado-trab td { background:#3b1c45 !important; }
+
+        /* HISTÓRICO */
+        .acoes-hist { display: flex; gap: 6px; justify-content: flex-end; }
+        .btn-acao { width: 28px; height: 28px; border-radius: 6px; font-size: 11px; cursor: pointer; border: none; color: white; display: flex; align-items: center; justify-content: center; }
+
+        /* TOAST NOTIFICAÇÃO */
+        #toast { position:fixed; bottom:20px; left:50%; transform: translateX(-50%); background:#065f46; color:#fff; padding:12px 24px; border-radius:50px; font-size:12px; font-weight:600; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        #toast.show { opacity:1; }
+
+        /* ESTILOS EXCLUSIVOS PARA O PDF GERADO (HTML2PDF) */
+        .pdf-container { background:#fff !important; color:#000 !important; padding:12mm 10mm !important; font-family: Arial, sans-serif; }
+        .pdf-header { text-align:center; margin-bottom:6px; border-bottom:2px solid #000; padding-bottom:6px; }
+        .pdf-header h2 { font-size:16px; font-weight:bold; text-transform:uppercase; color:#000; }
+        .pdf-meta { display:flex; justify-content:space-between; font-size:11px; margin-top:6px; font-weight:bold; }
+        .pdf-table { width:100% !important; border-collapse:collapse !important; margin-top:5px; }
+        .pdf-table th { background:#e2e8f0 !important; color:#000 !important; border:1px solid #000 !important; padding:5px 2px !important; font-size:10px !important; text-transform:uppercase; }
+        .pdf-table td { background:#fff !important; color:#000 !important; border:1px solid #000 !important; padding:4px 2px !important; font-size:10px !important; text-align:center; }
+        .pdf-table tr.pdf-fds td { background:#f1f5f9 !important; }
+        .pdf-table tr.pdf-dom td { background:#e2e8f0 !important; }
+        .pdf-table tr.pdf-feriado td { background:#fee2e2 !important; color:#991b1b !important; font-weight:bold; }
+        .pdf-table tr.pdf-falta td { background:#fef3c7 !important; color:#92400e !important; font-weight:bold; }
+        .pdf-table tr.pdf-ftrab td { background:#ede9fe !important; color:#5b21b6 !important; font-weight:bold; }
+        .pdf-totais { display:flex; justify-content:flex-end; gap:25px; margin-top:8px; font-size:11px; font-weight:bold; border-top:1.5px solid #000; padding-top:6px; }
+
+        /* ESTILOS EXCLUSIVOS PARA O PDF DE RESUMO CONSOLIDADO (HISTÓRICO) */
+        .resumo-container { background:#fff !important; color:#1e293b !important; padding:10mm 9mm !important; font-family: Arial, sans-serif; width:190mm; }
+        .resumo-header { background:#1e3a5f !important; color:#fff !important; border-radius:8px; padding:14px 18px; margin-bottom:18px; }
+        .resumo-header h2 { font-size:19px; font-weight:bold; margin-bottom:4px; }
+        .resumo-header p { font-size:11px; opacity:0.9; }
+        .resumo-section-title { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:bold; color:#1e3a5f !important; margin:0 0 8px; }
+        .resumo-section-title .bar { width:4px; height:15px; background:#2563eb; display:inline-block; border-radius:2px; }
+        .resumo-table { width:100% !important; border-collapse:collapse !important; margin-bottom:16px; }
+        .resumo-table th { background:#1e3a5f !important; color:#fff !important; text-align:left; padding:8px 12px; font-size:11px; }
+        .resumo-table th:last-child, .resumo-table td:last-child { text-align:right; padding-right:16px; }
+        .resumo-table td { padding:8px 12px; font-size:12px; color:#1e293b !important; border-bottom:1px solid #e2e8f0; }
+        .resumo-table tr:nth-child(even) td { background:#f8fafc !important; }
+        .resumo-table tr.total-row td { font-weight:bold; border-top:2px solid #1e3a5f; background:#eef2f7 !important; }
+        .resumo-metrics { display:flex; gap:12px; margin-bottom:16px; }
+        .resumo-metric-card { flex:1; border:1px solid #cbd5e1; border-radius:6px; padding:12px 14px; background:#f8fafc !important; }
+        .resumo-metric-card .label { font-size:9px; text-transform:uppercase; color:#64748b !important; letter-spacing:0.05em; margin-bottom:5px; }
+        .resumo-metric-card .valor { font-size:20px; font-weight:bold; color:#1e3a5f !important; }
+        .resumo-metric-card .valor small { font-size:11px; font-weight:normal; color:#64748b !important; }
+        .resumo-obs { background:#eff6ff !important; border-left:4px solid #2563eb; border-radius:4px; padding:12px 14px; font-size:11px; color:#1e293b !important; line-height:1.7; }
+        .resumo-obs strong { color:#1e3a5f !important; }
+        .resumo-footer { text-align:center; font-size:9px; color:#94a3b8 !important; margin-top:18px; }
+    </style>
+</head>
+<body>
+
+<div id="toast">💾 Ação realizada com sucesso!</div>
+
+<!-- ABAS -->
+<div class="abas">
+    <button class="aba ativa" id="btnAbaFolha" onclick="trocarAba('folha')"><i class="fas fa-file-invoice"></i> Folha Mensal</button>
+    <button class="aba" id="btnAbaHistorico" onclick="trocarAba('historico')"><i class="fas fa-history"></i> Histórico</button>
+</div>
+
+<!-- ABA FOLHA -->
+<div id="abaFolha">
+    <div class="header">
+        <h1><i class="fas fa-calendar-alt"></i> Folha de Ponto</h1>
+        <p>Preenchimento mensal automatizado</p>
+        
+        <div class="grid-inputs">
+            <div class="campo">
+                <label>Colaborador</label>
+                <input type="text" id="nomeFuncionario" placeholder="Nome do funcionário">
+            </div>
+            <div class="campo">
+                <label>Mês / Ano</label>
+                <input type="month" id="mesReferencia" value="2026-06">
+            </div>
+        </div>
+
+        <div class="grid-botoes">
+            <button class="btn btn-verde" id="btnPreencher"><i class="fas fa-bolt"></i> Padrão</button>
+            <button class="btn btn-azul" id="btnExportarPDF"><i class="fas fa-file-pdf"></i> Obter PDF</button>
+            <button class="btn btn-amber" id="btnSalvar"><i class="fas fa-save"></i> Guardar</button>
+            <button class="btn btn-cinza" id="btnLimpar"><i class="fas fa-eraser"></i> Limpar</button>
+        </div>
+    </div>
+
+    <div class="painel-horas">
+        <div class="bloco-hora"><div class="valor" id="horasTrabalhadas">0h 00m</div><div class="rotulo">Trabalhadas</div></div>
+        <div class="divisor"></div>
+        <div class="bloco-hora"><div class="valor" id="horasEsperadas">0h 00m</div><div class="rotulo">Esperadas</div></div>
+        <div class="divisor"></div>
+        <div class="bloco-hora"><div class="valor" id="horasSaldo">0h 00m</div><div class="rotulo">Saldo</div></div>
+        <div class="divisor"></div>
+        <div class="bloco-hora"><div class="valor" id="diasTrabalhados">0</div><div class="rotulo">Dias Trab.</div></div>
+    </div>
+
+    <div class="padroes">
+        <h2><i class="fas fa-clock"></i> Horários de Referência</h2>
+        <div class="flex-padroes">
+            <div class="grupo-padrao">
+                <span style="color:#34d399">Segunda a Sexta</span>
+                <div class="grade-horas">
+                    <input type="time" id="ssE1">
+                    <input type="time" id="ssS1">
+                    <input type="time" id="ssE2">
+                    <input type="time" id="ssS2">
+                </div>
+            </div>
+            <div class="grupo-padrao">
+                <span style="color:#fbbf24">Sábado</span>
+                <div class="grade-horas">
+                    <input type="time" id="sabE1">
+                    <input type="time" id="sabS1">
+                    <input type="time" id="sabE2">
+                    <input type="time" id="sabS2">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tabela-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:16%">Dia</th>
+                    <th style="width:20%">Status</th>
+                    <th>Ent. 1</th><th>Sai. 1</th><th>Ent. 2</th><th>Sai. 2</th>
+                </tr>
+            </thead>
+            <tbody id="corpo"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ABA HISTÓRICO -->
+<div id="abaHistorico" style="display:none">
+    <div class="header">
+        <h1 style="color:#60a5fa"><i class="fas fa-chart-bar"></i> Histórico Consolidado</h1>
+        <p>Gestão e exportação de registos armazenados</p>
+        <div class="grid-inputs" style="margin-top:12px;">
+            <div class="campo" style="grid-column: span 2;">
+                <label>Filtrar por Nome</label>
+                <input type="text" id="histNome" placeholder="Digite o nome para pesquisar...">
+            </div>
+        </div>
+        <div class="grid-botoes">
+            <button class="btn btn-azul" onclick="renderHistorico()"><i class="fas fa-search"></i> Pesquisar</button>
+            <button class="btn btn-excel" onclick="exportarExcel()"><i class="fas fa-file-excel"></i> Exportar Excel</button>
+        </div>
+        <div class="grid-botoes" style="margin-top:8px;">
+            <button class="btn btn-pdf" style="grid-column: span 2;" onclick="exportarResumoPDF()"><i class="fas fa-file-pdf"></i> Imprimir PDF (Resumo)</button>
+        </div>
+    </div>
+
+    <div class="tabela-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding-left:12px;">Mês / Ano</th>
+                    <th>Total Horas</th>
+                    <th style="text-align:right; padding-right:16px;">Ações</th>
+                </tr>
+            </thead>
+            <tbody id="histCorpo"></tbody>
+        </table>
+    </div>
+    <div id="histVazio" style="text-align:center; padding:40px; color:var(--cinza-muted); display:none;">
+        <i class="fas fa-folder-open" style="font-size:30px; margin-bottom:8px;"></i>
+        <p>Nenhum registo localizado.</p>
+    </div>
+</div>
+
+<div style="text-align:center; padding:20px 10px 10px; opacity:0.4; font-size:11px;">
+    © Jorge Costa — Todos os direitos reservados
+</div>
+
+<script>
+const semanas = ['dom','seg','ter','qua','qui','sex','sab'];
+const mesesNome = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const tbody = document.getElementById('corpo');
+const inputMes = document.getElementById('mesReferencia');
+const inputNome = document.getElementById('nomeFuncionario');
+
+function toMin(v){ if(!v) return 0; const [h,m]=v.split(':').map(Number); return h*60+m; }
+function minToStr(min){ const neg=min<0, a=Math.abs(min); return (neg?'-':'')+Math.floor(a/60)+'h '+String(a%60).padStart(2,'0')+'m'; }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+
+function trocarAba(aba){
+    document.getElementById('abaFolha').style.display = aba==='folha' ? '' : 'none';
+    document.getElementById('abaHistorico').style.display = aba==='historico' ? '' : 'none';
+    document.getElementById('btnAbaFolha').classList.toggle('ativa', aba==='folha');
+    document.getElementById('btnAbaHistorico').classList.toggle('ativa', aba==='historico');
+    window.scrollTo(0, 0);
+    if(aba==='historico') {
+        if(inputNome.value.trim()) document.getElementById('histNome').value = inputNome.value.trim();
+        renderHistorico();
+    }
+}
+
+function atualizarPainel(){
+    let trabalhadas=0, esperadas=0, dias=0;
+    tbody.querySelectorAll('tr').forEach(tr=>{
+        const sel=tr.querySelector('.status');
+        if(!sel) return;
+        const dsw=parseInt(tr.dataset.dsw);
+        const inputs=tr.querySelectorAll('.hora');
+        const status=sel.value;
+
+        if(status==='feriado' || status==='justificado') return;
+
+        const [e1,s1,e2,s2]=[...inputs].map(i=>toMin(i.value));
+        let h=0;
+        if(e1&&s1&&s1>e1) h+=(s1-e1);
+        if(e2&&s2&&s2>e2) h+=(s2-e2);
+        if(h>0){ trabalhadas+=h; dias++; }
+
+        if(status==='trabalhado'){
+            if(dsw>=1 && dsw<=5) esperadas += 480; // 8h
+            else if(dsw===6) esperadas += 240; // 4h
+        }
+    });
+    const saldo = trabalhadas - esperadas;
+    document.getElementById('horasTrabalhadas').textContent = minToStr(trabalhadas);
+    document.getElementById('horasEsperadas').textContent = minToStr(esperadas);
+    document.getElementById('diasTrabalhados').textContent = dias;
+    
+    const elS = document.getElementById('horasSaldo');
+    elS.textContent = (saldo>=0?'+':'') + minToStr(saldo);
+    elS.className = 'valor' + (saldo<0?' negativo':'');
+}
+
+function gerarTabela(dadosSalvos){
+    tbody.innerHTML='';
+    const [ano,mes]=inputMes.value.split('-').map(Number);
+    const total=new Date(ano,mes,0).getDate();
+
+    for(let d=1;d<=total;d++){
+        const dsw=new Date(ano,mes-1,d).getDay();
+        const tr=document.createElement('tr');
+        tr.dataset.dsw=dsw; tr.dataset.dia=d;
+        if(dsw===0) tr.classList.add('domingo');
+        else if(dsw===6) tr.classList.add('fim-semana');
+
+        tr.innerHTML=`
+            <td>${String(d).padStart(2,'0')}/${semanas[dsw]}</td>
+            <td>
+                <select class="status" onchange="mudaStatus(this); atualizarPainel(); autoSalvar();">
+                    <option value="trabalhado">Trabalhado</option>
+                    <option value="justificado">Falta Just.</option>
+                    <option value="feriado">Feriado</option>
+                    <option value="feriado-trab">Feriado Trab.</option>
+                </select>
+            </td>
+            ${['e1','s1','e2','s2'].map(()=>`<td><input type="time" class="hora" oninput="atualizarPainel(); autoSalvar();"></td>`).join('')}
+        `;
+        tbody.appendChild(tr);
+
+        if(dadosSalvos && dadosSalvos[d]){
+            const s = dadosSalvos[d];
+            tr.querySelector('.status').value = s.status;
+            mudaStatus(tr.querySelector('.status'));
+            const inps = tr.querySelectorAll('.hora');
+            if(s.horas) s.horas.forEach((v,i)=> { if(inps[i]) inps[i].value = v; });
+        }
+    }
+    atualizarPainel();
+}
+
+function mudaStatus(sel){
+    const tr=sel.closest('tr');
+    tr.classList.remove('justificado','feriado','feriado-trab');
+    const inputs=tr.querySelectorAll('.hora');
+    if(sel.value==='justificado' || sel.value==='feriado'){
+        tr.classList.add(sel.value);
+        inputs.forEach(i=>{ i.disabled=true; i.value=''; });
+    } else {
+        if(sel.value==='feriado-trab') tr.classList.add('feriado-trab');
+        inputs.forEach(i=>i.disabled=false);
+    }
+}
+
+function getChave(){ return 'fp_'+inputMes.value+'_'+(inputNome.value||'').toLowerCase().trim().replace(/\s+/g,'_'); }
+
+function salvar(){
+    if(!inputNome.value.trim()){ return; }
+    const d = {};
+    tbody.querySelectorAll('tr').forEach(tr=>{
+        d[tr.dataset.dia] = { status: tr.querySelector('.status').value, horas: [...tr.querySelectorAll('.hora')].map(i=>i.value) };
+    });
+    localStorage.setItem(getChave(), JSON.stringify(d));
+    showToast('💾 Alterações guardadas!');
+}
+let timer; function autoSalvar(){ clearTimeout(timer); timer=setTimeout(salvar, 1500); }
+
+// HISTÓRICO - CONTROLES (ORDENADO CRONOLOGICAMENTE DECRESCENTE)
+function renderHistorico(){
+    const busca = document.getElementById('histNome').value.toLowerCase().trim().replace(/\s+/g,'_');
+    const hCorpo = document.getElementById('histCorpo');
+    hCorpo.innerHTML = '';
+    let encontrou = false;
+    let registos = [];
+
+    // 1. Recolhe e filtra todos os registos válidos
+    for(let i=0; i<localStorage.length; i++){
+        const key = localStorage.key(i);
+        if(!key.startsWith('fp_')) continue;
+        if(busca && !key.includes(busca)) continue;
+
+        const partes = key.split('_');
+        const dataRef = partes[1]; // Formato YYYY-MM
+        const dados = JSON.parse(localStorage.getItem(key));
+        
+        let total = 0;
+        Object.values(dados).forEach(l => {
+            if(l.status==='feriado' || l.status==='justificado') return;
+            const [e1,s1,e2,s2] = l.horas.map(toMin);
+            if(e1&&s1&&s1>e1) total+=(s1-e1);
+            if(e2&&s2&&s2>e2) total+=(s2-e2);
+        });
+
+        registos.push({ key, dataRef, total });
+    }
+
+    // 2. Ordena de forma cronológica decrescente (Mais recente primeiro)
+    registos.sort((a, b) => b.dataRef.localeCompare(a.dataRef));
+
+    // 3. Renderiza a tabela já ordenada
+    registos.forEach(reg => {
+        encontrou = true;
+        const [ano, mes] = reg.dataRef.split('-');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding-left:12px; font-weight:600;">${mesesNome[parseInt(mes)-1]} / ${ano}</td>
+            <td style="text-align:center; color:#34d399; font-weight:700;">${minToStr(reg.total)}</td>
+            <td class="acoes-hist" style="padding-right:12px;">
+                <button class="btn-acao btn-azul" onclick="editarRegistro('${reg.key}')" title="Editar"><i class="fas fa-edit"></i></button>
+                <button class="btn-acao btn-red" onclick="excluirRegistro('${reg.key}')" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+            </td>
+        `;
+        hCorpo.appendChild(tr);
+    });
+
+    document.getElementById('histVazio').style.display = encontrou ? 'none' : 'block';
+}
+
+function editarRegistro(key){
+    try {
+        const raw = localStorage.getItem(key);
+        if(!raw) throw new Error('Registo não encontrado no armazenamento.');
+
+        // Extrai "YYYY-MM" logo após o prefixo "fp_" e trata o resto como nome
+        const m = key.match(/^fp_(\d{4}-\d{2})_(.+)$/);
+        if(!m) throw new Error('Chave de registo em formato inesperado: ' + key);
+
+        const dados = JSON.parse(raw);
+
+        inputMes.value = m[1];
+        inputNome.value = m[2].split('_').filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+
+        gerarTabela(dados);
+        trocarAba('folha');
+        window.scrollTo(0, 0);
+        showToast('✏️ Registo carregado para edição.');
+    } catch(err) {
+        console.error('Falha ao editar registo:', err);
+        alert('Não foi possível carregar este registo para edição. Tente novamente ou contacte o suporte.');
+    }
+}
+
+function excluirRegistro(key){
+    if(confirm('Tem a certeza que deseja eliminar este registo de forma permanente?')){
+        localStorage.removeItem(key);
+        renderHistorico();
+        showToast('🗑️ Registo eliminado com sucesso.');
+    }
+}
+
+function exportarExcel(){
+    const wb = XLSX.utils.book_new();
+    const dados = [['Mês / Ano', 'Total de Horas Trabalhadas']];
+    
+    let registosParaExcel = [];
+    for(let i=0; i<localStorage.length; i++){
+        const key = localStorage.key(i);
+        if(!key.startsWith('fp_')) continue;
+        const busca = document.getElementById('histNome').value.toLowerCase().trim().replace(/\s+/g,'_');
+        if(busca && !key.includes(busca)) continue;
+
+        const partes = key.split('_');
+        const dataRef = partes[1];
+        const item = JSON.parse(localStorage.getItem(key));
+        
+        let total = 0;
+        Object.values(item).forEach(l => {
+            if(l.status==='feriado' || l.status==='justificado') return;
+            const [e1,s1,e2,s2] = l.horas.map(toMin);
+            if(e1&&s1&&s1>e1) total+=(s1-e1);
+            if(e2&&s2&&s2>e2) total+=(s2-e2);
+        });
+        registosParaExcel.push({ dataRef, total });
+    }
+
+    registosParaExcel.sort((a, b) => b.dataRef.localeCompare(a.dataRef));
+    registosParaExcel.forEach(reg => {
+        const [ano, mes] = reg.dataRef.split('-');
+        dados.push([`${mesesNome[parseInt(mes)-1]} / ${ano}`, minToStr(reg.total)]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(dados);
+    XLSX.utils.book_append_sheet(wb, ws, "Histórico Consolidados");
+    XLSX.writeFile(wb, `Historico_Horas_${inputNome.value.trim() || 'Geral'}.xlsx`);
+}
+
+// RESUMO CONSOLIDADO EM PDF (HISTÓRICO)
+function formatarListaDias(dias){
+    const ordenados = [...dias].sort((a,b)=>a-b);
+    if(ordenados.length === 1) return `dia ${String(ordenados[0]).padStart(2,'0')}`;
+    const ultimos = ordenados.slice(0,-1).map(d=>String(d).padStart(2,'0')).join(', ');
+    const final = String(ordenados[ordenados.length-1]).padStart(2,'0');
+    return `dias ${ultimos} e ${final}`;
+}
+
+function exportarResumoPDF(){
+    const busca = document.getElementById('histNome').value.toLowerCase().trim().replace(/\s+/g,'_');
+
+    let registos = [];
+    for(let i=0; i<localStorage.length; i++){
+        const key = localStorage.key(i);
+        if(!key.startsWith('fp_')) continue;
+        if(busca && !key.includes(busca)) continue;
+
+        const m = key.match(/^fp_(\d{4}-\d{2})_(.+)$/);
+        if(!m) continue;
+        const dataRef = m[1];
+        const dados = JSON.parse(localStorage.getItem(key));
+
+        let totalMin = 0;
+        const faltas = [], feriados = [], feriadosTrab = [];
+        Object.entries(dados).forEach(([dia, l]) => {
+            if(l.status === 'justificado'){ faltas.push(parseInt(dia)); return; }
+            if(l.status === 'feriado'){ feriados.push(parseInt(dia)); return; }
+            if(l.status === 'feriado-trab'){ feriadosTrab.push(parseInt(dia)); }
+            const [e1,s1,e2,s2] = (l.horas||[]).map(toMin);
+            if(e1&&s1&&s1>e1) totalMin += (s1-e1);
+            if(e2&&s2&&s2>e2) totalMin += (s2-e2);
+        });
+
+        registos.push({ dataRef, totalMin, faltas, feriados, feriadosTrab });
+    }
+
+    if(registos.length === 0){
+        alert('Nenhum registo encontrado para gerar o resumo. Verifique o filtro de nome.');
+        return;
+    }
+
+    registos.sort((a,b) => a.dataRef.localeCompare(b.dataRef));
+
+    const nomeColaborador = (document.getElementById('histNome').value.trim() || inputNome.value.trim() || 'Geral');
+    const [anoIni, mesIni] = registos[0].dataRef.split('-');
+    const [anoFim, mesFim] = registos[registos.length-1].dataRef.split('-');
+    const rotuloPeriodo = anoIni === anoFim
+        ? `${mesesNome[parseInt(mesIni)-1]} a ${mesesNome[parseInt(mesFim)-1]} de ${anoFim}`
+        : `${mesesNome[parseInt(mesIni)-1]} de ${anoIni} a ${mesesNome[parseInt(mesFim)-1]} de ${anoFim}`;
+
+    const totalGeralMin = registos.reduce((s,r)=>s+r.totalMin, 0);
+    const totalGeralHoras = Math.round(totalGeralMin/60);
+    const mediaMensal = (totalGeralMin/60/registos.length).toFixed(1);
+    const maior = registos.reduce((max,r)=> r.totalMin > max.totalMin ? r : max, registos[0]);
+    const [anoMaior, mesMaior] = maior.dataRef.split('-');
+
+    let linhasTabela = '';
+    registos.forEach((r, idx) => {
+        const [ano, mes] = r.dataRef.split('-');
+        linhasTabela += `
+            <tr>
+                <td>${mesesNome[parseInt(mes)-1]}${anoIni!==anoFim ? ' / '+ano : ''}</td>
+                <td style="text-align:right; padding-right:16px;">${Math.round(r.totalMin/60)} horas</td>
+            </tr>`;
+    });
+    linhasTabela += `
+        <tr class="total-row">
+            <td>Total Geral Acumulado</td>
+            <td style="text-align:right; padding-right:16px;">${totalGeralHoras} horas</td>
+        </tr>`;
+
+    let observacoes = '';
+    registos.forEach(r => {
+        const [ano, mes] = r.dataRef.split('-');
+        const partes = [];
+        if(r.faltas.length) partes.push(`contabiliza o desconto de ${r.faltas.length} falta${r.faltas.length>1?'s':''} justificada${r.faltas.length>1?'s':''} n${r.faltas.length>1?'os':'o'} ${formatarListaDias(r.faltas)}`);
+        if(r.feriados.length) partes.push(`inclui ${r.feriados.length} feriado${r.feriados.length>1?'s':''} n${r.feriados.length>1?'os':'o'} ${formatarListaDias(r.feriados)} (sem contagem de horas)`);
+        if(r.feriadosTrab.length) partes.push(`considera ${r.feriadosTrab.length} feriado${r.feriadosTrab.length>1?'s':''} trabalhado${r.feriadosTrab.length>1?'s':''} n${r.feriadosTrab.length>1?'os':'o'} ${formatarListaDias(r.feriadosTrab)}`);
+
+        if(partes.length){
+            const texto = partes.join('; ').replace(/^./, c=>c.toUpperCase());
+            observacoes += `<div style="margin-bottom:6px;"><strong>${mesesNome[parseInt(mes)-1]}:</strong> ${texto}.</div>`;
+        }
+    });
+    if(!observacoes){
+        observacoes = '<div>Nenhuma ocorrência especial (faltas ou feriados) registada no período.</div>';
+    }
+
+    const divPdf = document.createElement('div');
+    divPdf.className = 'resumo-container';
+    divPdf.innerHTML = `
+        <div class="resumo-header">
+            <h2>Resumo de Horas Trabalhadas</h2>
+            <p>Colaborador: ${nomeColaborador.split('_').filter(Boolean).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ')} • Registo Consolidado (${rotuloPeriodo})</p>
+        </div>
+
+        <div class="resumo-section-title"><span class="bar"></span> Lista de Horas por Mês</div>
+        <table class="resumo-table">
+            <thead>
+                <tr><th>Mês de Referência</th><th>Total de Horas Efetivas</th></tr>
+            </thead>
+            <tbody>${linhasTabela}</tbody>
+        </table>
+
+        <div class="resumo-section-title"><span class="bar"></span> Métricas do Período</div>
+        <div class="resumo-metrics">
+            <div class="resumo-metric-card">
+                <div class="label">Média Mensal</div>
+                <div class="valor">${mediaMensal} h</div>
+            </div>
+            <div class="resumo-metric-card">
+                <div class="label">Maior Volume Registado</div>
+                <div class="valor">${Math.round(maior.totalMin/60)} h <small>(${mesesNome[parseInt(mesMaior)-1]}${anoIni!==anoFim ? ' de '+anoMaior : ''})</small></div>
+            </div>
+        </div>
+
+        <div class="resumo-section-title"><span class="bar"></span> Observações Importantes de Registo</div>
+        <div class="resumo-obs">${observacoes}</div>
+
+        <div class="resumo-footer">Documento gerado automaticamente pela Folha de Ponto Mensal</div>
+    `;
+
+    const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `Resumo_Horas_${nomeColaborador.replace(/\s+/g,'_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2.5, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(divPdf).save();
+    showToast('📄 Resumo em PDF gerado com sucesso!');
+}
+
+// LÓGICA DE DETECÇÃO E EXPORTAÇÃO COMPACTA EM PDF (A4 ÚNICO)
+document.getElementById('btnExportarPDF').addEventListener('click', () => {
+    if(!inputNome.value.trim()){
+        alert('Por favor, introduza o nome do colaborador antes de gerar o PDF.');
+        return;
+    }
+
+    const [ano,mes] = inputMes.value.split('-');
+    const divPdf = document.createElement('div');
+    divPdf.className = 'pdf-container';
+
+    let tabelaHtml = '';
+    let totalTrabalhadas = 0;
+    let totalDias = 0;
+
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const diaStr = tr.querySelector('td:first-child').innerText;
+        const status = tr.querySelector('.status').value;
+        const inputs = tr.querySelectorAll('.hora');
+        const dsw = parseInt(tr.dataset.dsw);
+
+        let classeLinha = '';
+        if(dsw === 6) classeLinha = 'pdf-fds';
+        if(dsw === 0) classeLinha = 'pdf-dom';
+        if(status === 'feriado') classeLinha = 'pdf-feriado';
+        if(status === 'justificado') classeLinha = 'pdf-falta';
+        if(status === 'feriado-trab') classeLinha = 'pdf-ftrab';
+
+        let c1 = inputs[0].value || '', c2 = inputs[1].value || '', c3 = inputs[2].value || '', c4 = inputs[3].value || '';
+        
+        if(status === 'feriado') { c1 = 'FERIADO'; c2 = '—'; c3 = '—'; c4 = '—'; }
+        else if(status === 'justificado') { c1 = 'FALTA JUSTIFICADA'; c2 = '—'; c3 = '—'; c4 = '—'; }
+        else {
+            const [e1,s1,e2,s2] = [...inputs].map(i=>toMin(i.value));
+            let h = 0;
+            if(e1&&s1&&s1>e1) h+=(s1-e1);
+            if(e2&&s2&&s2>e2) h+=(s2-e2);
+            if(h>0) { totalTrabalhadas += h; totalDias++; }
+        }
+
+        tabelaHtml += `
+            <tr class="${classeLinha}">
+                <td style="font-weight:bold;">${diaStr}</td>
+                <td colspan="${(status==='feriado'||status==='justificado') ? '4' : '1'}">${c1}</td>
+                ${(status!=='feriado'&&status!=='justificado') ? `<td>${c2}</td><td>${c3}</td><td>${c4}</td>` : ''}
+            </tr>
+        `;
+    });
+
+    divPdf.innerHTML = `
+        <div class="pdf-header">
+            <h2>Folha de Ponto Mensal</h2>
+            <div class="pdf-meta">
+                <span>Colaborador: ${inputNome.value.toUpperCase()}</span>
+                <span>Período: ${mesesNome[parseInt(mes)-1]} de ${ano}</span>
+            </div>
+        </div>
+        <table class="pdf-table">
+            <thead>
+                <tr>
+                    <th style="width:14%">Dia</th>
+                    <th>Entrada 1</th>
+                    <th>Saída 1</th>
+                    <th>Entrada 2</th>
+                    <th>Saída 2</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tabelaHtml}
+            </tbody>
+        </table>
+        <div class="pdf-totais">
+            <span>Dias Trabalhados: ${totalDias}</span>
+            <span>Total de Horas: ${minToStr(totalTrabalhadas)}</span>
+        </div>
+    `;
+
+    const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `Folha_Ponto_${inputNome.value.trim().replace(/\s+/g,'_')}_${inputMes.value}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2.5, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(divPdf).save();
+    showToast('📄 PDF gerado com sucesso!');
+});
+
+// LISTENERS
+document.getElementById('btnPreencher').addEventListener('click', () => {
+    const ss = [document.getElementById('ssE1').value, document.getElementById('ssS1').value, document.getElementById('ssE2').value, document.getElementById('ssS2').value];
+    const sab = [document.getElementById('sabE1').value, document.getElementById('sabS1').value, document.getElementById('sabE2').value, document.getElementById('sabS2').value];
+    
+    tbody.querySelectorAll('tr').forEach(tr => {
+        const dsw = parseInt(tr.dataset.dsw);
+        const sel = tr.querySelector('.status');
+        if(!sel || sel.value !== 'trabalhado') return;
+        
+        const inps = tr.querySelectorAll('.hora');
+        const vals = (dsw >= 1 && dsw <= 5) ? ss : (dsw === 6 ? sab : null);
+        if(vals) vals.forEach((v, i) => { if(inps[i]) inps[i].value = v; });
+    });
+    atualizarPainel(); autoSalvar();
+});
+
+document.getElementById('btnSalvar').addEventListener('click', () => {
+    if(!inputNome.value.trim()){
+        alert('Defina o nome do colaborador para poder guardar os dados.');
+        return;
+    }
+    salvar();
+});
+
+document.getElementById('btnLimpar').addEventListener('click', () => {
+    if(confirm('Deseja limpar todos os registos e horários do mês atual?')) {
+        tbody.querySelectorAll('input').forEach(i=>i.value='');
+        tbody.querySelectorAll('.status').forEach(s=>{ s.value='trabalhado'; mudaStatus(s); });
+        atualizarPainel();
+    }
+});
+
+inputMes.addEventListener('change', () => {
+    const local = localStorage.getItem(getChave());
+    gerarTabela(local ? JSON.parse(local) : null);
+});
+
+// INICIALIZAÇÃO
+gerarTabela(null);
+
+// SERVICE WORKER (funcionamento offline)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .catch(err => console.log('Falha ao registar Service Worker:', err));
+    });
+}
+</script>
+</body>
+</html>
